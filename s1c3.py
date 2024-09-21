@@ -1,0 +1,146 @@
+def xor(a: bytes, b: bytes) -> bytes:
+    assert len(a) == len(b)
+    return int.to_bytes(int.from_bytes(a, 'little') ^ int.from_bytes(b, 'little'), len(a), 'little')
+
+def tohex(b: bytes) -> str:
+    s: str = ''
+    for bb in b:
+        c = hex(bb)[2:]
+        if len(c) == 1:
+            c = '0' + c
+        s += c
+    return s
+
+def tobytes(s: str) -> bytes:
+    return bytes(s, 'ascii')
+
+def frombytes(b: bytes) -> str:
+    return b.decode('ascii')
+
+def onepad_xor(p: bytes, k: int) -> bytes:
+    return xor(p, bytes(bytearray([k] * len(p))))
+
+def crack_onepad_xor(c: bytes) -> tuple[bytes, int]:
+    dist: float = None
+    best: tuple = (None, None)
+    for k in range(0x000, 0x100):
+        p: bytes = onepad_xor(c, k)
+        f: dict = ascii_freqmap(p)
+        d: float = ascii_freqmap_dist(f)
+        if not dist or dist > d:
+            dist = d
+            best = (p, k)
+    assert best[0]
+    return best
+
+def freqmap_norm(freqmap: dict, over: int) -> dict:
+    for key in freqmap:
+        freqmap[key] = float(freqmap[key]) / over
+    return freqmap
+
+def ascii_freqmap(p: bytes) -> dict:
+    d: dict = {
+        'e' : 0.0, 't' : 0.0, 'a' : 0.0, 'o' : 0.0,
+        'i' : 0.0, 'n' : 0.0, 's' : 0.0, 'r' : 0.0,
+        'h' : 0.0, 'd' : 0.0, 'l' : 0.0, 'u' : 0.0,
+        'c' : 0.0, 'm' : 0.0, 'f' : 0.0, 'y' : 0.0,
+        'w' : 0.0, 'g' : 0.0, 'p' : 0.0, 'b' : 0.0, 
+        'v' : 0.0, 'k' : 0.0, 'x' : 0.0, 'q' : 0.0,
+        'j' : 0.0, 'z' : 0.0
+    }
+    for c in p:
+        if ischar(c):
+            d[chr(c).lower()] += 1
+    freqmap_norm(d, len(p))
+    return d
+
+def ascii_freqmap_dist(freqmap: dict) -> float:
+    golden_freqmap: dict = {
+        'e' : 0.0120, 't' : 0.0910, 'a' : 0.0812,
+        'o' : 0.0768, 'i' : 0.0731, 'n' : 0.0695,
+        's' : 0.0628, 'r' : 0.0602, 'h' : 0.0592,
+        'd' : 0.0432, 'l' : 0.0398, 'u' : 0.0288,
+        'c' : 0.0271, 'm' : 0.0261, 'f' : 0.0230,
+        'y' : 0.0211, 'w' : 0.0209, 'g' : 0.0203,
+        'p' : 0.0182, 'b' : 0.0149, 'v' : 0.0111,
+        'k' : 0.0069, 'x' : 0.0017, 'q' : 0.0011,
+        'j' : 0.0010, 'z' : 0.0007
+    }
+    dist: float = 0.0
+    for key in freqmap:
+        dist += (golden_freqmap[key] - freqmap[key]) ** 2
+    return dist
+
+def ascii_trigram_freqmap(p: bytes) -> dict:
+    d: dict = {
+        'the': 0.0,
+        'and': 0.0,
+        'ing': 0.0,
+        'her': 0.0,
+        'hat': 0.0,
+        'his': 0.0,
+        'tha': 0.0,
+        'ere': 0.0,
+        'for': 0.0,
+        'ent': 0.0,
+        'ion': 0.0,
+        'ter': 0.0,
+        'was': 0.0,
+        'you': 0.0,
+        'ith': 0.0,
+        'ver': 0.0,
+        'all': 0.0,
+        'wit': 0.0,
+        'thi': 0.0,
+        'tio': 0.0
+    }
+    for i in range(0, len(p), 1):
+        if i + 1 < len(p) and i + 2 < len(p):
+            if ischar(p[i]) and ischar(p[i+1]) and ischar(p[i+2]):
+                trigram: str = f'{chr(p[i])}{chr(p[i+1])}{chr(p[i+2])}'.lower()
+                if trigram in d:
+                    d[trigram] += 1
+    freqmap_norm(d, len(p))
+    return d
+
+def ascii_trigram_freqmap_dist(fmap: dict) -> float:
+    golden_freqmap: dict = {
+        'the': 0.3508232,
+        'and': 0.1593878,
+        'ing': 0.1147042,
+        'her': 0.0822444,
+        'hat': 0.0650715,
+        'his': 0.0596748,
+        'tha': 0.0593593,
+        'ere': 0.0560594,
+        'for': 0.0555372,
+        'ent': 0.0530771,
+        'ion': 0.0506454,
+        'ter': 0.0461099,
+        'was': 0.0460487,
+        'you': 0.0437213,
+        'ith': 0.0431250,
+        'ver': 0.0430732,
+        'all': 0.0422758,
+        'wit': 0.0397290,
+        'thi': 0.0394796,
+        'tio': 0.0378058
+    }
+    distance: float = 0.0
+    for key in fmap:
+        distance += (golden_freqmap[key] - fmap[key]) ** 2
+    return distance
+
+def ischar(ival: int) -> bool:
+    return (ival in range(ord('A'), ord('Z'))) or\
+           (ival in range(ord('a'), ord('z')))
+
+if __name__ == '__main__':
+    c1: str = '1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736'
+    c2: str = 'ETAOIN SHRDLU'
+    c1b: bytes = bytes.fromhex(c1)
+    c2b: bytes = tobytes(c2)
+    p1, k = crack_onepad_xor(c1b)
+    print(p1.decode('ascii'))
+    p2 = onepad_xor(c2b, k)
+    print(p2.decode('ascii'))
