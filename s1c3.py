@@ -17,14 +17,14 @@ def tobytes(s: str) -> bytes:
 def frombytes(b: bytes) -> str:
     return b.decode('ascii')
 
-def onepad_xor(p: bytes, k: int) -> bytes:
+def onebkey_xor(p: bytes, k: int) -> bytes:
     return xor(p, bytes(bytearray([k] * len(p))))
 
-def crack_onepad_xor(c: bytes) -> tuple[bytes, int]:
+def crack_onebkey_xor(c: bytes) -> tuple[bytes, int]:
     dist: float = None
     best: tuple = (None, None)
     for k in range(0x000, 0x100):
-        p: bytes = onepad_xor(c, k)
+        p: bytes = onebkey_xor(c, k)
         f: dict = ascii_freqmap(p)
         d: float = ascii_freqmap_dist(f)
         if not dist or dist > d:
@@ -105,26 +105,86 @@ def ascii_trigram_freqmap(p: bytes) -> dict:
 
 def ascii_trigram_freqmap_dist(fmap: dict) -> float:
     golden_freqmap: dict = {
-        'the': 0.3508232,
-        'and': 0.1593878,
-        'ing': 0.1147042,
-        'her': 0.0822444,
-        'hat': 0.0650715,
-        'his': 0.0596748,
-        'tha': 0.0593593,
-        'ere': 0.0560594,
-        'for': 0.0555372,
-        'ent': 0.0530771,
-        'ion': 0.0506454,
-        'ter': 0.0461099,
-        'was': 0.0460487,
-        'you': 0.0437213,
-        'ith': 0.0431250,
-        'ver': 0.0430732,
-        'all': 0.0422758,
-        'wit': 0.0397290,
-        'thi': 0.0394796,
-        'tio': 0.0378058
+        'the': 0.03508232,
+        'and': 0.01593878,
+        'ing': 0.01147042,
+        'her': 0.00822444,
+        'hat': 0.00650715,
+        'his': 0.00596748,
+        'tha': 0.00593593,
+        'ere': 0.00560594,
+        'for': 0.00555372,
+        'ent': 0.00530771,
+        'ion': 0.00506454,
+        'ter': 0.00461099,
+        'was': 0.00460487,
+        'you': 0.00437213,
+        'ith': 0.00431250,
+        'ver': 0.00430732,
+        'all': 0.00422758,
+        'wit': 0.00397290,
+        'thi': 0.00394796,
+        'tio': 0.00378058
+    }
+    distance: float = 0.0
+    for key in fmap:
+        distance += (golden_freqmap[key] - fmap[key]) ** 2
+    return distance
+
+def ascii_quadrigram_freqmap(p: bytes) -> dict:
+    d: dict = {
+        'that': 0.00761242,
+        'ther': 0.00604501,
+        'with': 0.00573866,
+        'tion': 0.00551919,
+        'here': 0.00374549,
+        'ould': 0.00369920,
+        'ight': 0.00309440,
+        'have': 0.00290544,
+        'hich': 0.00284292,
+        'whic': 0.00283826,
+        'this': 0.00276333,
+        'thin': 0.00270413,
+        'they': 0.00262421,
+        'atio': 0.00262386,
+        'ever': 0.00260695,
+        'from': 0.00258580,
+        'ough': 0.00253447,
+        'were': 0.00231089,
+        'hing': 0.00229944,
+        'ment': 0.00223347
+    }
+    for i in range(0, len(p), 1):
+        if i + 3 < len(p):
+            if ischar(p[i]) and ischar(p[i+1]) and ischar(p[i+2]) and ischar(p[i+3]):
+                quadrigram: str = f'{chr(p[i])}{chr(p[i+1])}{chr(p[i+2])}{chr(p[i+3])}'.lower()
+                if quadrigram in d:
+                    d[quadrigram] += 1
+    freqmap_norm(d, len(p))
+    return d
+
+def ascii_quadrigram_freqmap_dist(fmap: dict) -> float:
+    golden_freqmap: dict = {
+        'that': 0.0,
+        'ther': 0.0,
+        'with': 0.0,
+        'tion': 0.0,
+        'here': 0.0,
+        'ould': 0.0,
+        'ight': 0.0,
+        'have': 0.0,
+        'hich': 0.0,
+        'whic': 0.0,
+        'this': 0.0,
+        'thin': 0.0,
+        'they': 0.0,
+        'atio': 0.0,
+        'ever': 0.0,
+        'from': 0.0,
+        'ough': 0.0,
+        'were': 0.0,
+        'hing': 0.0,
+        'ment': 0.0
     }
     distance: float = 0.0
     for key in fmap:
@@ -140,7 +200,7 @@ if __name__ == '__main__':
     c2: str = 'ETAOIN SHRDLU'
     c1b: bytes = bytes.fromhex(c1)
     c2b: bytes = tobytes(c2)
-    p1, k = crack_onepad_xor(c1b)
+    p1, k = crack_onebkey_xor(c1b)
     print(p1.decode('ascii'))
-    p2 = onepad_xor(c2b, k)
+    p2 = onebkey_xor(c2b, k)
     print(p2.decode('ascii'))

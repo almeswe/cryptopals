@@ -10,7 +10,7 @@ def find() -> tuple[bytes, int]:
     lines: list[str] = read()
     for line in lines:
         cb: bytes = bytes.fromhex(line)
-        p: bytes = crack_onepad_xor(cb)[0]
+        p: bytes = crack_onebkey_xor(cb)[0]
         f: dict = ascii_trigram_freqmap(p)
         d: float = ascii_trigram_freqmap_dist(f)
         if not dist or dist > d:
